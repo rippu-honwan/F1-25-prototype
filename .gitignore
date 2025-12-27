@@ -4,19 +4,19 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 venv/
 ENV/
-*.egg-info/
-.eggs/
+env/
+.venv
 
-# Data files
+# Data files (CRITICAL!)
 *.csv
 *.db
 *.sqlite
+*.sqlite3
 data/
 cache/
-influxdb_data/
+output/
 
 # Environment variables
 .env
@@ -25,12 +25,10 @@ influxdb_data/
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# FastF1 cache
-~/.fastf1_cache/
+# Logs
+*.log
