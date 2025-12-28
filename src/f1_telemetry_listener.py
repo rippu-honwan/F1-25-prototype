@@ -1,28 +1,28 @@
 """
 F1 25 UDP Telemetry Listener
+Packet を受け取り、データを収集して CSV に保存
 """
 
 import socket
-import csv
-from datetime import datetime
-from pathlib import Path
 import logging
+
+from .data_collector import TelemetryDataCollector
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class F1TelemetryListener:
-    def __init__(self, ip="0.0.0.0", port=20777):
+    def __init__(self, ip="0.0.0.0", port=20777, player_car_index=0):
         self.ip = ip
         self.port = port
         self.socket = None
+        self.collector = TelemetryDataCollector(player_car_index=player_car_index)
         
     def setup(self):
         """UDP ソケットを初期化する"""
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # ソケットを再利用可能に設定
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.ip, self.port))
             print(f"✓ {self.ip}:{self.port} でリッスン開始")
@@ -34,7 +34,7 @@ class F1TelemetryListener:
             return False
     
     def start(self, timeout=60):
-        """UDP データをリッスンする"""
+        """UDP データをリッスンして収集する"""
         if not self.socket:
             if not self.setup():
                 return
@@ -51,11 +51,14 @@ class F1TelemetryListener:
                 data, addr = self.socket.recvfrom(2048)
                 packet_count += 1
                 
+                # Packet を処理してデータ収集
+                self.collector.process_packet(data)
+                
                 if packet_count == 1:
                     print(f"\n✓ データ受信開始！")
                 
-                if packet_count % 20 == 0:
-                    print(f"✓ パケット #{packet_count} 受信 ({len(data)} バイト) from {addr}")
+                if packet_count % 500 == 0:
+                    print(f"✓ {packet_count} パケット受信 (Lap: {self.collector.lap_data_count}, Telemetry: {self.collector.car_telemetry_count})")
         
         except socket.timeout:
             print(f"\n⏱ タイムアウト ({packet_count} パケット受信)")
@@ -70,8 +73,15 @@ class F1TelemetryListener:
             if self.socket:
                 self.socket.close()
                 print("\nソケットをクローズしました")
+                
+                # 統計情報を表示して CSV に保存
+                self.collector.print_stats()
+                
+                if self.collector.frame_data:
+                    output_file = self.collector.save_to_csv()
+                    print(f"✓ CSV ファイルを保存しました: {output_file}")
 
 
 if __name__ == "__main__":
     listener = F1TelemetryListener()
-    listener.start(timeout=60)
+    listener.start(timeout=600)  # 10 、テコードーで反標を受け取るようにしました
