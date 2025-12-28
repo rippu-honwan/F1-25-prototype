@@ -13,6 +13,7 @@ from pathlib import Path
 import warnings
 import platform
 from datetime import datetime
+import os
 
 warnings.filterwarnings('ignore')
 
@@ -231,6 +232,7 @@ class Phase1分析:
         output_path.parent.mkdir(exist_ok=True)
         plt.savefig(output_path, dpi=150, bbox_inches='tight')
         print(f"✓ グラフ保存: {output_path}")
+        print(f"✓ ファイルサイズ: {os.path.getsize(output_path) / 1024:.1f} KB")
         plt.close()
     
     def 職業選手対比可視化(self):
@@ -242,6 +244,12 @@ class Phase1分析:
         data_type = "【実数値】" if self.実数値フラグ else "【シミュレーション】"
         print(f"\n対比対象: {data_type} {self.職業選手名}")
         
+        # 安全チェック: Speed をクリップして不正な値を防ぐ
+        speed_data = self.職業選手データ['Speed'].values.clip(0, 400)
+        throttle_data = self.職業選手データ['Throttle'].values.clip(0, 1)
+        brake_data = self.職業選手データ['Brake'].values.clip(0, 1)
+        steering_data = self.職業選手データ['Steering'].values.clip(-1, 1)
+        
         fig, axes = plt.subplots(4, 1, figsize=(14, 10))
         
         title = f'あなた vs {self.職業選手名} ({self.職業選手年号}年) - モンツァ'
@@ -251,11 +259,11 @@ class Phase1分析:
         
         # 時間軸の正規化
         your_time = np.linspace(0, 1, len(self.ユーザーデータ))
-        pro_time = np.linspace(0, 1, len(self.職業選手データ))
+        pro_time = np.linspace(0, 1, len(speed_data))
         
         # グラフ 1: 速度対比
         axes[0].plot(your_time, self.ユーザーデータ['speed_kph'], label='あなた', linewidth=2, color='#1f77b4')
-        axes[0].plot(pro_time, self.職業選手データ['Speed'], label=f'{self.職業選手名}', linewidth=2, color='#ff7f0e', alpha=0.7)
+        axes[0].plot(pro_time, speed_data, label=f'{self.職業選手名}', linewidth=2, color='#ff7f0e', alpha=0.7)
         axes[0].set_title('速度対比', fontsize=12, fontweight='bold')
         axes[0].set_ylabel('速度 (km/h)')
         axes[0].legend(loc='upper right')
@@ -263,7 +271,7 @@ class Phase1分析:
         
         # グラフ 2: 油門対比
         axes[1].plot(your_time, self.ユーザーデータ['throttle'] * 100, label='あなた', linewidth=2, color='#2ca02c')
-        axes[1].plot(pro_time, self.職業選手データ['Throttle'] * 100, label=f'{self.職業選手名}', linewidth=2, color='#d62728', alpha=0.7)
+        axes[1].plot(pro_time, throttle_data * 100, label=f'{self.職業選手名}', linewidth=2, color='#d62728', alpha=0.7)
         axes[1].set_title('油門入力対比', fontsize=12, fontweight='bold')
         axes[1].set_ylabel('油門 (0-100%)')
         axes[1].legend(loc='upper right')
@@ -271,7 +279,7 @@ class Phase1分析:
         
         # グラフ 3: ブレーキ対比
         axes[2].plot(your_time, self.ユーザーデータ['brake'] * 100, label='あなた', linewidth=2, color='#9467bd')
-        axes[2].plot(pro_time, self.職業選手データ['Brake'] * 100, label=f'{self.職業選手名}', linewidth=2, color='#8c564b', alpha=0.7)
+        axes[2].plot(pro_time, brake_data * 100, label=f'{self.職業選手名}', linewidth=2, color='#8c564b', alpha=0.7)
         axes[2].set_title('ブレーキ入力対比', fontsize=12, fontweight='bold')
         axes[2].set_ylabel('ブレーキ (0-100%)')
         axes[2].legend(loc='upper right')
@@ -279,7 +287,7 @@ class Phase1分析:
         
         # グラフ 4: ステアリング対比
         axes[3].plot(your_time, self.ユーザーデータ['steering'], label='あなた', linewidth=2, color='#e377c2')
-        axes[3].plot(pro_time, self.職業選手データ['Steering'], label=f'{self.職業選手名}', linewidth=2, color='#7f7f7f', alpha=0.7)
+        axes[3].plot(pro_time, steering_data, label=f'{self.職業選手名}', linewidth=2, color='#7f7f7f', alpha=0.7)
         axes[3].set_title('ステアリング入力対比', fontsize=12, fontweight='bold')
         axes[3].set_ylabel('ステアリング角度')
         axes[3].set_xlabel('ラップ進捗 (0=開始, 1=終了)')
@@ -291,6 +299,7 @@ class Phase1分析:
         output_path.parent.mkdir(exist_ok=True)
         plt.savefig(output_path, dpi=150, bbox_inches='tight')
         print(f"✓ グラフ保存: {output_path}")
+        print(f"✓ ファイルサイズ: {os.path.getsize(output_path) / 1024:.1f} KB")
         plt.close()
     
     def 統計分析(self):
@@ -323,7 +332,7 @@ class Phase1分析:
         print(f"\n  あなたの平均速: {self.ユーザーデータ['speed_kph'].mean():.1f} km/h")
         print(f"  {self.職業選手名}の平均速: {self.職業選手データ['Speed'].mean():.1f} km/h")
         speed_diff_pct = (self.職業選手データ['Speed'].mean() - self.ユーザーデータ['speed_kph'].mean()) / self.ユーザーデータ['speed_kph'].mean() * 100
-        print(f"  差異: {speed_diff_pct:+.1f}%")
+        print(f"  差畩: {speed_diff_pct:+.1f}%")
         
         print("\n【⚙️ 油門分析】")
         print(f"  あなたの平均油門: {self.ユーザーデータ['throttle'].mean():.1%}")
@@ -382,6 +391,16 @@ class Phase1分析:
         print("\n📊 生成されたファイル:")
         print("  1. analysis_results/your_telemetry_overview.png")
         print("  2. analysis_results/you_vs_pro_comparison.png")
+        
+        # ファイルサイズ確認
+        try:
+            f1_size = os.path.getsize('analysis_results/your_telemetry_overview.png') / 1024
+            f2_size = os.path.getsize('analysis_results/you_vs_pro_comparison.png') / 1024
+            print(f"\n📊 ファイル情報:")
+            print(f"  1. {f1_size:.1f} KB")
+            print(f"  2. {f2_size:.1f} KB")
+        except:
+            pass
         
         data_label = "【実数値】" if self.実数値フラグ else "【シミュ】" 
         print(f"\n対比対象: {data_label} {self.職業選手名}")
