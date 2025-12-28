@@ -32,7 +32,6 @@ class F1TelemetryRecorder:
         self.fieldnames = [
             'timestamp',
             'frame_id',
-            'lap_number',
             'packet_type',
             'throttle',
             'brake',
@@ -41,9 +40,6 @@ class F1TelemetryRecorder:
             'gear',
             'rpm',
             'drs',
-            'lat_g',
-            'lon_g',
-            'vert_g',
             'position_x',
             'position_y',
             'position_z',
@@ -66,12 +62,46 @@ class F1TelemetryRecorder:
         
         print(f"🎯 Recording to: {filepath}")
     
+    def parse_header(self, data):
+        """Parse F1 25 UDP header (24 bytes)
+        
+        Structure:
+        Bytes 0-1:   Packet format (2025)
+        Bytes 2:     Game year (25)
+        Bytes 3:     Game version major
+        Bytes 4:     Game version minor  
+        Bytes 5:     Packet version
+        Bytes 6:     Packet ID (Type)
+        Bytes 7-14:  Session UID
+        Bytes 15-22: Session time (float)
+        Bytes 23-26: Frame ID
+        """
+        if len(data) < 24:
+            return None
+        
+        try:
+            # Safe unpacking with error handling
+            packet_format = struct.unpack('<H', data[0:2])[0]
+            game_year = data[2]
+            packet_version = data[5]
+            packet_type = data[6]
+            frame_id = struct.unpack('<I', data[16:20])[0]
+            
+            return {
+                'packet_format': packet_format,
+                'game_year': game_year,
+                'packet_version': packet_version,
+                'packet_type': packet_type,
+                'frame_id': frame_id,
+            }
+        except Exception as e:
+            print(f"⚠️  Header parse error: {e}")
+            return None
+    
     def parse_car_telemetry(self, data):
         """Parse Type 6 (Car Telemetry) packet
         
-        F1 25 UDP Packet Structure (Type 6):
-        Header: 24 bytes
-        Car telemetry data: m_carTelemetryData[22] (22 cars)
+        Simplified parsing - just get basic values
         """
         if len(data) < 100:
             return None
@@ -80,37 +110,41 @@ class F1TelemetryRecorder:
             header_size = 24
             offset = header_size
             
-            # Car telemetry structure (simplified)
-            throttle = struct.unpack('<B', data[offset:offset+1])[0] if len(data) > offset else 0
-            brake = struct.unpack('<B', data[offset+1:offset+2])[0] if len(data) > offset+1 else 0
-            steering = struct.unpack('<h', data[offset+2:offset+4])[0] / 32767.0 if len(data) > offset+3 else 0
+            # Safe extraction with bounds checking
+            telemetry = {}
             
-            # RPM
-            rpm = struct.unpack('<H', data[offset+4:offset+6])[0] if len(data) > offset+5 else 0
+            # Throttle (byte)
+            if len(data) > offset:
+                telemetry['throttle'] = data[offset]
             
-            # Speed (kph)
-            speed = struct.unpack('<H', data[offset+6:offset+8])[0] if len(data) > offset+7 else 0
+            # Brake (byte)
+            if len(data) > offset + 1:
+                telemetry['brake'] = data[offset + 1]
             
-            # DRS
-            drs = struct.unpack('<B', data[offset+8:offset+9])[0] if len(data) > offset+8 else 0
+            # Steering (short, convert to -1.0 to 1.0)
+            if len(data) > offset + 3:
+                steering_raw = struct.unpack('<h', data[offset+2:offset+4])[0]
+                telemetry['steering'] = round(steering_raw / 32767.0, 3)
             
-            # Gear
-            gear = struct.unpack('<b', data[offset+9:offset+10])[0] if len(data) > offset+9 else 0
+            # RPM (ushort)
+            if len(data) > offset + 5:
+                telemetry['rpm'] = struct.unpack('<H', data[offset+4:offset+6])[0]
             
-            return {
-                'throttle': throttle,
-                'brake': brake,
-                'steering': round(steering, 3),
-                'speed': speed,
-                'gear': gear,
-                'rpm': rpm,
-                'drs': drs,
-                'lat_g': '',
-                'lon_g': '',
-                'vert_g': '',
-            }
+            # Speed (ushort, kph)
+            if len(data) > offset + 7:
+                telemetry['speed'] = struct.unpack('<H', data[offset+6:offset+8])[0]
+            
+            # DRS (byte)
+            if len(data) > offset + 8:
+                telemetry['drs'] = data[offset + 8]
+            
+            # Gear (signed byte)
+            if len(data) > offset + 9:
+                telemetry['gear'] = struct.unpack('<b', data[offset+9:offset+10])[0]
+            
+            return telemetry
+            
         except Exception as e:
-            print(f"⚠️  Error parsing telemetry: {e}")
             return None
     
     def parse_motion(self, data):
@@ -122,18 +156,23 @@ class F1TelemetryRecorder:
             header_size = 24
             offset = header_size
             
-            # Position (X, Y, Z)
-            pos_x = struct.unpack('<f', data[offset:offset+4])[0] if len(data) > offset+3 else 0
-            pos_y = struct.unpack('<f', data[offset+4:offset+8])[0] if len(data) > offset+7 else 0
-            pos_z = struct.unpack('<f', data[offset+8:offset+12])[0] if len(data) > offset+11 else 0
+            motion = {}
             
-            return {
-                'position_x': round(pos_x, 2),
-                'position_y': round(pos_y, 2),
-                'position_z': round(pos_z, 2),
-            }
+            # Position X (float)
+            if len(data) > offset + 3:
+                motion['position_x'] = round(struct.unpack('<f', data[offset:offset+4])[0], 2)
+            
+            # Position Y (float)
+            if len(data) > offset + 7:
+                motion['position_y'] = round(struct.unpack('<f', data[offset+4:offset+8])[0], 2)
+            
+            # Position Z (float)
+            if len(data) > offset + 11:
+                motion['position_z'] = round(struct.unpack('<f', data[offset+8:offset+12])[0], 2)
+            
+            return motion
+            
         except Exception as e:
-            print(f"⚠️  Error parsing motion: {e}")
             return None
     
     def record_packet(self, data):
@@ -142,17 +181,17 @@ class F1TelemetryRecorder:
             return
         
         try:
-            # Parse header
-            header_data = struct.unpack('<HBBBBBQfII', data[:20])
-            frame_id = header_data[8]
+            # Parse header safely
+            header = self.parse_header(data)
+            if not header:
+                return
             
-            packet_type = data[6]
+            packet_type = header['packet_type']
             self.packet_count[packet_type] += 1
             
             row = {
                 'timestamp': datetime.now().isoformat(),
-                'frame_id': frame_id,
-                'lap_number': '',
+                'frame_id': header['frame_id'],
                 'packet_type': packet_type,
                 'throttle': '',
                 'brake': '',
@@ -161,9 +200,6 @@ class F1TelemetryRecorder:
                 'gear': '',
                 'rpm': '',
                 'drs': '',
-                'lat_g': '',
-                'lon_g': '',
-                'vert_g': '',
                 'position_x': '',
                 'position_y': '',
                 'position_z': '',
@@ -180,9 +216,10 @@ class F1TelemetryRecorder:
                 if motion:
                     row.update(motion)
             
-            # Write to CSV
-            self.writer.writerow(row)
-            self.csv_file.flush()
+            # Write to CSV only if we have meaningful data
+            if any(row.get(field) != '' for field in self.fieldnames if field not in ['timestamp', 'frame_id', 'packet_type']):
+                self.writer.writerow(row)
+                self.csv_file.flush()
             
         except Exception as e:
             print(f"⚠️  Error recording packet: {e}")
@@ -241,14 +278,18 @@ def main():
     print(f"   Press Ctrl+C to stop\n")
     
     try:
+        packet_errors = 0
         while True:
             data, addr = s.recvfrom(2048)
             recorder.record_packet(data)
             
-            # Show progress every 1000 packets
+            # Show progress every 500 packets
             total = sum(recorder.packet_count.values())
-            if total % 1000 == 0:
+            if total > 0 and total % 500 == 0:
                 print(f"✓ Recorded {total} packets...")
+                # Print current packet type distribution
+                types_str = ", ".join([f"T{t}:{recorder.packet_count[t]}" for t in sorted(recorder.packet_count.keys())])
+                print(f"  Types: {types_str}")
                 
     except KeyboardInterrupt:
         print("\n\n⏹️  Stopping recording...")
