@@ -11,11 +11,19 @@ import matplotlib.pyplot as plt
 import matplotlib
 from pathlib import Path
 import warnings
+import platform
 
 warnings.filterwarnings('ignore')
 
-# 日本語フォント設定
-matplotlib.rcParams['font.family'] = 'DejaVu Sans'
+# 日本語フォント設定 - OS別対応
+if platform.system() == 'Darwin':  # macOS
+    matplotlib.rcParams['font.family'] = 'Hiragino Sans'
+elif platform.system() == 'Windows':
+    matplotlib.rcParams['font.family'] = 'MS Gothic'
+else:  # Linux
+    matplotlib.rcParams['font.family'] = 'DejaVu Sans'
+
+matplotlib.rcParams['axes.unicode_minus'] = False
 plt.rcParams['figure.figsize'] = (14, 10)
 
 
@@ -40,6 +48,10 @@ class Phase1Analysis:
         
         print(f"\n✓ セッション時間: {self.user_data['session_time'].min():.1f}s - {self.user_data['session_time'].max():.1f}s")
         print(f"✓ 走行時間: {(self.user_data['session_time'].max() - self.user_data['session_time'].min()):.1f}秒")
+        
+        # ✅ CSV形式の正規化: throttle/brake を 0-255 から 0-1 に変換
+        self.user_data['throttle'] = self.user_data['throttle'] / 255
+        self.user_data['brake'] = self.user_data['brake'] / 255
         
         # 基本統計
         print(f"\n【基本統計】")
@@ -117,37 +129,37 @@ class Phase1Analysis:
         print("="*60)
         
         fig, axes = plt.subplots(4, 1, figsize=(14, 10))
-        fig.suptitle('Your Telemetry Data - Monza', fontsize=16, fontweight='bold')
+        fig.suptitle('あなたのテレメトリーデータ - モンツァ', fontsize=16, fontweight='bold')
         
         time = self.user_data['session_time']
         
         # グラフ 1: 速度
         axes[0].plot(time, self.user_data['speed_kph'], color='#1f77b4', linewidth=1.5)
-        axes[0].set_title('Speed vs Session Time', fontsize=12, fontweight='bold')
-        axes[0].set_ylabel('Speed (km/h)')
+        axes[0].set_title('速度 vs セッション時間', fontsize=12, fontweight='bold')
+        axes[0].set_ylabel('速度 (km/h)')
         axes[0].grid(True, alpha=0.3)
-        axes[0].axhline(y=self.user_data['speed_kph'].mean(), color='red', linestyle='--', alpha=0.5, label=f'Avg: {self.user_data["speed_kph"].mean():.1f}')
+        axes[0].axhline(y=self.user_data['speed_kph'].mean(), color='red', linestyle='--', alpha=0.5, label=f'平均: {self.user_data["speed_kph"].mean():.1f}')
         axes[0].legend()
         
         # グラフ 2: 油門/ブレーキ
-        axes[1].plot(time, self.user_data['throttle'], label='Throttle', color='green', linewidth=1.5)
-        axes[1].plot(time, self.user_data['brake'], label='Brake', color='red', linewidth=1.5)
-        axes[1].set_title('Throttle vs Brake Input', fontsize=12, fontweight='bold')
-        axes[1].set_ylabel('Input (0-1)')
+        axes[1].plot(time, self.user_data['throttle'] * 100, label='油門', color='green', linewidth=1.5)
+        axes[1].plot(time, self.user_data['brake'] * 100, label='ブレーキ', color='red', linewidth=1.5)
+        axes[1].set_title('油門 vs ブレーキ入力', fontsize=12, fontweight='bold')
+        axes[1].set_ylabel('入力 (0-100%)')
         axes[1].grid(True, alpha=0.3)
         axes[1].legend()
         
         # グラフ 3: ステアリング
         axes[2].plot(time, self.user_data['steering'], color='purple', linewidth=1.5)
-        axes[2].set_title('Steering Angle', fontsize=12, fontweight='bold')
-        axes[2].set_ylabel('Steering (-1 to +1)')
+        axes[2].set_title('ステアリング角度', fontsize=12, fontweight='bold')
+        axes[2].set_ylabel('ステアリング (-1 ～ +1)')
         axes[2].grid(True, alpha=0.3)
         
         # グラフ 4: RPM
         axes[3].plot(time, self.user_data['rpm'], color='orange', linewidth=1.5)
-        axes[3].set_title('Engine RPM', fontsize=12, fontweight='bold')
+        axes[3].set_title('エンジン RPM', fontsize=12, fontweight='bold')
         axes[3].set_ylabel('RPM')
-        axes[3].set_xlabel('Session Time (s)')
+        axes[3].set_xlabel('セッション時間 (秒)')
         axes[3].grid(True, alpha=0.3)
         
         plt.tight_layout()
@@ -164,42 +176,42 @@ class Phase1Analysis:
         print("="*60)
         
         fig, axes = plt.subplots(4, 1, figsize=(14, 10))
-        fig.suptitle('You vs Pro Driver - Monza Comparison', fontsize=16, fontweight='bold')
+        fig.suptitle('あなた vs プロドライバー - モンツァ対比', fontsize=16, fontweight='bold')
         
         # 時間軸の正規化
         your_time = np.linspace(0, 1, len(self.user_data))
         pro_time = np.linspace(0, 1, len(self.pro_data))
         
         # グラフ 1: 速度対比
-        axes[0].plot(your_time, self.user_data['speed_kph'], label='You', linewidth=2, color='#1f77b4')
-        axes[0].plot(pro_time, self.pro_data['Speed'], label='Pro Driver', linewidth=2, color='#ff7f0e', alpha=0.7)
-        axes[0].set_title('Speed Comparison', fontsize=12, fontweight='bold')
-        axes[0].set_ylabel('Speed (km/h)')
+        axes[0].plot(your_time, self.user_data['speed_kph'], label='あなた', linewidth=2, color='#1f77b4')
+        axes[0].plot(pro_time, self.pro_data['Speed'], label='プロドライバー', linewidth=2, color='#ff7f0e', alpha=0.7)
+        axes[0].set_title('速度対比', fontsize=12, fontweight='bold')
+        axes[0].set_ylabel('速度 (km/h)')
         axes[0].legend(loc='upper right')
         axes[0].grid(True, alpha=0.3)
         
         # グラフ 2: 油門対比
-        axes[1].plot(your_time, self.user_data['throttle'], label='You', linewidth=2, color='#2ca02c')
-        axes[1].plot(pro_time, self.pro_data['Throttle'], label='Pro Driver', linewidth=2, color='#d62728', alpha=0.7)
-        axes[1].set_title('Throttle Input Comparison', fontsize=12, fontweight='bold')
-        axes[1].set_ylabel('Throttle (0-100%)')
+        axes[1].plot(your_time, self.user_data['throttle'] * 100, label='あなた', linewidth=2, color='#2ca02c')
+        axes[1].plot(pro_time, self.pro_data['Throttle'] * 100, label='プロドライバー', linewidth=2, color='#d62728', alpha=0.7)
+        axes[1].set_title('油門入力対比', fontsize=12, fontweight='bold')
+        axes[1].set_ylabel('油門 (0-100%)')
         axes[1].legend(loc='upper right')
         axes[1].grid(True, alpha=0.3)
         
         # グラフ 3: ブレーキ対比
-        axes[2].plot(your_time, self.user_data['brake'], label='You', linewidth=2, color='#9467bd')
-        axes[2].plot(pro_time, self.pro_data['Brake'], label='Pro Driver', linewidth=2, color='#8c564b', alpha=0.7)
-        axes[2].set_title('Brake Input Comparison', fontsize=12, fontweight='bold')
-        axes[2].set_ylabel('Brake (0-100%)')
+        axes[2].plot(your_time, self.user_data['brake'] * 100, label='あなた', linewidth=2, color='#9467bd')
+        axes[2].plot(pro_time, self.pro_data['Brake'] * 100, label='プロドライバー', linewidth=2, color='#8c564b', alpha=0.7)
+        axes[2].set_title('ブレーキ入力対比', fontsize=12, fontweight='bold')
+        axes[2].set_ylabel('ブレーキ (0-100%)')
         axes[2].legend(loc='upper right')
         axes[2].grid(True, alpha=0.3)
         
         # グラフ 4: ステアリング対比
-        axes[3].plot(your_time, self.user_data['steering'], label='You', linewidth=2, color='#e377c2')
-        axes[3].plot(pro_time, self.pro_data['Steering'], label='Pro Driver', linewidth=2, color='#7f7f7f', alpha=0.7)
-        axes[3].set_title('Steering Input Comparison', fontsize=12, fontweight='bold')
-        axes[3].set_ylabel('Steering Angle')
-        axes[3].set_xlabel('Lap Progress (0=Start, 1=Finish)')
+        axes[3].plot(your_time, self.user_data['steering'], label='あなた', linewidth=2, color='#e377c2')
+        axes[3].plot(pro_time, self.pro_data['Steering'], label='プロドライバー', linewidth=2, color='#7f7f7f', alpha=0.7)
+        axes[3].set_title('ステアリング入力対比', fontsize=12, fontweight='bold')
+        axes[3].set_ylabel('ステアリング角度')
+        axes[3].set_xlabel('ラップ進捗 (0=開始, 1=終了)')
         axes[3].legend(loc='upper right')
         axes[3].grid(True, alpha=0.3)
         
