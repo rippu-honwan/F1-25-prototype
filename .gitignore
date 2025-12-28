@@ -53,9 +53,16 @@ coverage.xml
 *~
 .DS_Store
 
-# F1 Telemetry Data (CSV files)
-telemetry_data/
-*.csv
+# F1 Telemetry Data
+# サンプルデータは含める、大きなファイルはignore
+telemetry_data/*.large.csv
+telemetry_data/*.backup.csv
+telemetry_data/temp/
+
+# ただしサンプルデータとREADMEは含める
+!telemetry_data/*.sample.csv
+!telemetry_data/README.md
+!telemetry_data/.gitkeep
 
 # Jupyter Notebook
 .ipynb_checkpoints
