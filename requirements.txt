@@ -1,6 +1,16 @@
-pandas>=1.5.0
-numpy>=1.23.0
-fastf1>=0.10.0
-requests>=2.28.0
-python-dotenv>=0.21.0
-matplotlib>=3.7.0
+# F1 25 Telemetry Recorder Requirements
+# Install with: pip install -r requirements.txt
+
+# No external dependencies required!
+# Uses only Python standard library:
+# - socket (UDP communication)
+# - struct (binary packet parsing)
+# - csv (data export)
+# - datetime (timestamping)
+# - collections (data aggregation)
+# - os (file operations)
+
+# Optional future dependencies:
+# fastf1>=3.0.0  # For real F1 telemetry data
+# pandas>=2.0.0  # For data analysis
+# matplotlib>=3.5.0  # For visualization
