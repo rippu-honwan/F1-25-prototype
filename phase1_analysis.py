@@ -37,8 +37,15 @@ class Phase1Analysis:
         self.user_data = pd.read_csv(self.csv_path)
         print(f"✓ データ読み込み完了: {len(self.user_data)} 行")
         print(f"✓ カラム: {list(self.user_data.columns)}")
+        
         print(f"\n✓ セッション時間: {self.user_data['session_time'].min():.1f}s - {self.user_data['session_time'].max():.1f}s")
-        print(f"✓ ラップ数: {self.user_data['lap_num'].max():.0f}")
+        print(f"✓ 走行時間: {(self.user_data['session_time'].max() - self.user_data['session_time'].min()):.1f}秒")
+        
+        # 基本統計
+        print(f"\n【基本統計】")
+        print(f"  最高速: {self.user_data['speed_kph'].max():.1f} km/h")
+        print(f"  平均速: {self.user_data['speed_kph'].mean():.1f} km/h")
+        print(f"  最低速: {self.user_data['speed_kph'].min():.1f} km/h")
         
         return self.user_data
     
@@ -279,7 +286,7 @@ class Phase1Analysis:
         print("\n生成されたファイル:")
         print("  1. analysis_results/your_telemetry_overview.png")
         print("  2. analysis_results/you_vs_pro_comparison.png")
-        print("\n次のステップ: Phase 2 - Corner別分析")
+        print("\n次のステップ: Phase 2 - コーナー別分析")
         print("="*60 + "\n")
 
 
